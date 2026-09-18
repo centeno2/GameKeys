@@ -1,0 +1,13 @@
+{
+  "position": "bottom-left",
+  "margin_x": 20,
+  "margin_y": 20,
+  "theme": "dms",
+  "opacity": 0.72,
+  "mouse": true,
+  "keys": [
+    ["Tab", "Q", "W", "E", "R"],
+    ["Shift", "A", "S", "D", "F"],
+    ["Ctrl", "Space"]
+  ]
+}

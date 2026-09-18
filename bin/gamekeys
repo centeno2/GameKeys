@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -u
+
+APP_DIR="${GAMEKEYS_HOME:-$HOME/.local/share/gamekeys}"
+APP="$APP_DIR/src"
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+PIDFILE="$RUNTIME_DIR/gamekeys-${UID}.pid"
+LOG="${XDG_CACHE_HOME:-$HOME/.cache}/gamekeys/gamekeys.log"
+mkdir -p "$(dirname "$LOG")"
+
+is_running() {
+  [[ -f "$PIDFILE" ]] || return 1
+  local pid
+  pid="$(cat "$PIDFILE" 2>/dev/null || true)"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+start() {
+  if is_running; then
+    echo "GameKeys is already running (PID $(cat "$PIDFILE"))."
+    return 0
+  fi
+  rm -f "$PIDFILE"
+  PYTHONPATH="$APP${PYTHONPATH:+:$PYTHONPATH}" nohup python3 -m gamekeys.app "$@" >"$LOG" 2>&1 &
+  local pid=$!
+  echo "$pid" > "$PIDFILE"
+  sleep 0.35
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "GameKeys ON (PID $pid)"
+  else
+    rm -f "$PIDFILE"
+    echo "GameKeys failed to start. Log: $LOG" >&2
+    tail -n 30 "$LOG" >&2 || true
+    return 1
+  fi
+}
+
+stop() {
+  if ! is_running; then
+    rm -f "$PIDFILE"
+    echo "GameKeys is not running."
+    return 0
+  fi
+  local pid
+  pid="$(cat "$PIDFILE")"
+  kill "$pid" 2>/dev/null || true
+  for _ in {1..15}; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.05
+  done
+  rm -f "$PIDFILE"
+  echo "GameKeys OFF"
+}
+
+doctor() {
+  printf 'GameKeys environment check\n\n'
+  if [[ "${XDG_SESSION_TYPE:-}" == "wayland" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+    echo "✓ Wayland detected (${XDG_CURRENT_DESKTOP:-unknown desktop})"
+  else
+    echo "✗ Wayland not detected"
+  fi
+
+  if python3 - <<'PYDOCTOR' >/dev/null 2>&1
+import cairo, evdev, gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gtk4LayerShell
+PYDOCTOR
+  then
+    echo "✓ Runtime dependencies OK"
+  else
+    echo "✗ Missing runtime dependency"
+  fi
+
+  if find /dev/input -maxdepth 1 -type c -name 'event*' -readable -print -quit 2>/dev/null | grep -q .; then
+    echo "✓ Input devices readable"
+  else
+    echo "! No readable /dev/input/event* device"
+  fi
+
+  if [[ -f "$HOME/.cache/DankMaterialShell/dms-colors.json" || -f "$HOME/.config/gtk-4.0/dank-colors.css" ]]; then
+    echo "✓ DMS/Matugen dynamic palette detected"
+  else
+    echo "! DMS/Matugen not detected (optional)"
+  fi
+}
+
+case "${1:-toggle}" in
+  toggle)
+    if is_running; then stop; else start; fi
+    ;;
+  start)
+    shift
+    start "$@"
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    shift
+    stop >/dev/null
+    start "$@"
+    ;;
+  status)
+    if is_running; then echo "GameKeys is running (PID $(cat "$PIDFILE"))."; else echo "GameKeys is stopped."; fi
+    ;;
+  logs)
+    tail -n 80 "$LOG" 2>/dev/null || true
+    ;;
+  doctor)
+    doctor
+    ;;
+  --help|-h|help)
+    cat <<EOF
+Usage: gamekeys [toggle|start|stop|restart|status|logs|doctor]
+
+Examples:
+  gamekeys
+  gamekeys start
+  gamekeys restart --theme dms --position bottom-left
+  gamekeys restart --theme rose
+  gamekeys status
+  gamekeys doctor
+EOF
+    ;;
+  *)
+    start "$@"
+    ;;
+esac

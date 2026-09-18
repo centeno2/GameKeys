@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GameKeys
+Comment=Wayland keyboard and mouse input overlay
+Exec=@GAMEKEYS_BIN@
+Icon=input-keyboard
+Terminal=false
+Categories=Utility;
+Keywords=keyboard;mouse;overlay;wayland;gaming;
