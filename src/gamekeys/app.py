@@ -4,6 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from ctypes import CDLL
+CDLL("libgtk4-layer-shell.so")
+
 import cairo
 import gi
 
@@ -28,7 +31,7 @@ class GameKeysApp(Gtk.Application):
         self.theme_manager: ThemeManager | None = None
 
     def do_activate(self) -> None:
-        win = Gtk.ApplicationWindow(application=self)
+        win = Gtk.Window(application=self)
         win.add_css_class("gamekeys-window")
         win.set_decorated(False)
         win.set_resizable(False)

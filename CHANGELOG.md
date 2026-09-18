@@ -1,17 +1,17 @@
 # Changelog
 
-## 0.1.0 - 2026-09-17
+## 0.1.0 - 2026-09-18
 
 - Initial public release.
-- GTK4 + gtk4-layer-shell overlay for Wayland.
-- Global keyboard and mouse button capture through evdev.
-- Click-through overlay suitable for fullscreen games.
-- Bottom-left, bottom-right, top-left and top-right positioning.
-- DMS/Matugen dynamic color integration with live reload.
-- Built-in fallback themes: dark, rose and monochrome.
-- Toggle launcher and desktop entry.
-- Automatic dependency installation for Arch-based and recent Debian/Ubuntu systems.
-- Wayland, dependency, input-permission and optional DMS checks during installation.
-- `gamekeys doctor` environment diagnostics.
-- Legacy local install detection and backup.
-- Clean uninstall and `--purge` mode.
+- GTK4 + gtk4-layer-shell Wayland overlay.
+- Global keyboard and mouse capture through evdev.
+- LMB, RMB and MMB indicators.
+- Click-through fullscreen overlay.
+- Four-corner positioning.
+- DMS/Matugen dynamic colors with live reload.
+- Built-in dark, rose and mono themes.
+- Automatic dependency installer for Arch-based and recent Debian/Ubuntu systems.
+- `gamekeys doctor`.
+- Built-in `gamekeys uninstall` and `--purge`.
+- True GTK4 layer-shell integration for workspace-independent overlay behavior.
+- Installation independent of repository clone location.

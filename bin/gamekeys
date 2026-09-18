@@ -6,6 +6,8 @@ APP="$APP_DIR/src"
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
 PIDFILE="$RUNTIME_DIR/gamekeys-${UID}.pid"
 LOG="${XDG_CACHE_HOME:-$HOME/.cache}/gamekeys/gamekeys.log"
+RULE="/etc/udev/rules.d/70-gamekeys-uaccess.rules"
+
 mkdir -p "$(dirname "$LOG")"
 
 is_running() {
@@ -20,11 +22,15 @@ start() {
     echo "GameKeys is already running (PID $(cat "$PIDFILE"))."
     return 0
   fi
+
   rm -f "$PIDFILE"
-  PYTHONPATH="$APP${PYTHONPATH:+:$PYTHONPATH}" nohup python3 -m gamekeys.app "$@" >"$LOG" 2>&1 &
+
+  PYTHONPATH="$APP${PYTHONPATH:+:$PYTHONPATH}"     nohup python3 -m gamekeys.app "$@" >"$LOG" 2>&1 &
+
   local pid=$!
   echo "$pid" > "$PIDFILE"
   sleep 0.35
+
   if kill -0 "$pid" 2>/dev/null; then
     echo "GameKeys ON (PID $pid)"
   else
@@ -41,19 +47,23 @@ stop() {
     echo "GameKeys is not running."
     return 0
   fi
+
   local pid
   pid="$(cat "$PIDFILE")"
   kill "$pid" 2>/dev/null || true
+
   for _ in {1..15}; do
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.05
   done
+
   rm -f "$PIDFILE"
   echo "GameKeys OFF"
 }
 
 doctor() {
   printf 'GameKeys environment check\n\n'
+
   if [[ "${XDG_SESSION_TYPE:-}" == "wayland" || -n "${WAYLAND_DISPLAY:-}" ]]; then
     echo "✓ Wayland detected (${XDG_CURRENT_DESKTOP:-unknown desktop})"
   else
@@ -61,9 +71,16 @@ doctor() {
   fi
 
   if python3 - <<'PYDOCTOR' >/dev/null 2>&1
-import cairo, evdev, gi
+from ctypes import CDLL
+CDLL("libgtk4-layer-shell.so")
+
+import cairo
+import evdev
+import gi
+
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
+
 from gi.repository import Gtk, Gtk4LayerShell
 PYDOCTOR
   then
@@ -82,6 +99,39 @@ PYDOCTOR
     echo "✓ DMS/Matugen dynamic palette detected"
   else
     echo "! DMS/Matugen not detected (optional)"
+  fi
+
+  if [[ -n "${NIRI_SOCKET:-}" ]]; then
+    echo "✓ Niri IPC detected"
+    echo "✓ Focused-output following available"
+  fi
+}
+
+uninstall_gamekeys() {
+  local purge=false
+  [[ "${1:-}" == "--purge" ]] && purge=true
+
+  stop >/dev/null 2>&1 || true
+  rm -rf "$APP_DIR" "$HOME/.local/lib/gamekeys"
+  rm -f "$HOME/.local/share/applications/gamekeys.desktop"
+
+  if $purge; then
+    rm -rf "$HOME/.config/gamekeys"
+
+    if [[ -e "$RULE" ]]; then
+      sudo rm -f "$RULE"
+      sudo udevadm control --reload-rules
+      sudo udevadm trigger --subsystem-match=input >/dev/null 2>&1 || true
+    fi
+  fi
+
+  rm -f "$HOME/.local/bin/gamekeys"
+
+  if $purge; then
+    echo "GameKeys fully removed."
+  else
+    echo "GameKeys removed."
+    echo "Config kept at $HOME/.config/gamekeys/config.json"
   fi
 }
 
@@ -102,7 +152,11 @@ case "${1:-toggle}" in
     start "$@"
     ;;
   status)
-    if is_running; then echo "GameKeys is running (PID $(cat "$PIDFILE"))."; else echo "GameKeys is stopped."; fi
+    if is_running; then
+      echo "GameKeys is running (PID $(cat "$PIDFILE"))."
+    else
+      echo "GameKeys is stopped."
+    fi
     ;;
   logs)
     tail -n 80 "$LOG" 2>/dev/null || true
@@ -110,17 +164,27 @@ case "${1:-toggle}" in
   doctor)
     doctor
     ;;
+  uninstall)
+    shift
+    uninstall_gamekeys "${1:-}"
+    ;;
   --help|-h|help)
     cat <<EOF
-Usage: gamekeys [toggle|start|stop|restart|status|logs|doctor]
-
-Examples:
+Usage:
   gamekeys
   gamekeys start
-  gamekeys restart --theme dms --position bottom-left
-  gamekeys restart --theme rose
+  gamekeys stop
+  gamekeys restart
   gamekeys status
+  gamekeys logs
   gamekeys doctor
+  gamekeys uninstall
+  gamekeys uninstall --purge
+
+Options:
+  --position top-left|top-right|bottom-left|bottom-right
+  --theme dms|dark|rose|mono
+  --opacity 0.15-1.0
 EOF
     ;;
   *)
