@@ -83,6 +83,9 @@ MSG
 verify_dependencies() {
   info "Verifying Python/GTK dependencies"
   python3 - <<'PY'
+from ctypes import CDLL
+CDLL("libgtk4-layer-shell.so")
+
 import cairo
 import evdev
 import gi
