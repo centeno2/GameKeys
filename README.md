@@ -41,6 +41,13 @@ gamekeys status
 gamekeys doctor
 gamekeys logs
 ```
+##view
+
+
+<img width="536" height="190" alt="imagen" src="https://github.com/user-attachments/assets/349bbd67-2f35-4f14-844d-3a793eb55527" /> 
+<img width="536" height="190" alt="imagen" src="https://github.com/user-attachments/assets/8a278e37-bc22-42ee-ac3e-ab36d78427e0" />
+
+
 
 Examples:
 
